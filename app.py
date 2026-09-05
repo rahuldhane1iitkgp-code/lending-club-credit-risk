@@ -117,7 +117,7 @@ if st.button("Assess Risk", type="primary"):
     st.subheader("Result")
     c1, c2 = st.columns(2)
     c1.metric("Predicted default probability", f"{prob:.1%}")
-    c2.metric("Decision", decision, help=f"Threshold: {threshold:.0%} (profit-optimal, not the accuracy/F1-optimal one)")
+    c2.metric("Decision", decision, help=f"Threshold: {threshold:.0%} — selected on held-out validation data to maximise net profit, not F1")
 
     if decision == "REJECT":
         st.error(f"This application exceeds the {threshold:.0%} risk threshold.")
@@ -139,7 +139,10 @@ if st.button("Assess Risk", type="primary"):
 st.divider()
 st.caption(
     f"Model: XGBoost, calibrated (isotonic). Test PR-AUC: {artifacts['test_pr_auc']:.3f}, "
-    f"Test ROC-AUC: {artifacts['test_roc_auc']:.3f}. Threshold chosen to maximize net profit "
-    f"under assumed economics (LGD=50%, profit margin=10%), not F1 score. "
+    f"Test ROC-AUC: {artifacts['test_roc_auc']:.3f}. The {threshold:.0%} threshold was selected on a "
+    f"held-out validation split — never on test — to maximize net profit under assumed economics "
+    f"(LGD={artifacts['assumed_lgd']:.0%}, profit margin={artifacts['assumed_profit_margin']:.0%}), not F1. "
+    f"On test it approves {artifacts['test_approval_rate']:.0%} of applicants for a net of "
+    f"${artifacts['test_net_at_threshold']/1e6:.1f}M. "
     f"This is a portfolio/demo model — assumptions are documented, not derived from proprietary lender data."
 )

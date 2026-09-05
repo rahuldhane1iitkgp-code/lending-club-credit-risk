@@ -56,17 +56,29 @@ net = Σ (principal × margin)   over approved loans that repaid
 
 with `LGD = 50%` and `profit margin = 10%` as stated assumptions.
 
-| Threshold | Approval rate | Net |
-|---|---|---|
-| 0.05 | 3.7% | $6.0M |
-| 0.10 | 15.5% | $18.9M |
-| 0.12 | 22.6% | $22.7M |
-| **0.15** | **31.0%** | **$23.8M** |
-| 0.18 | 41.1% | $21.9M |
-| 0.25 | 61.8% | $4.4M |
-| 0.30 | 73.4% | **−$13.6M** |
+**The threshold is a fitted parameter, so it gets its own held-out data.** Selecting it on test and then reporting profit at that threshold reports the maximum of a noisy surface — a biased number. Validation is therefore split in two:
 
-**0.15 is the shipped threshold** — approve roughly the safest 31% of applicants. The curve is the argument: profit peaks and then collapses, turning negative by a 73% approval rate. A model tuned for accuracy or F1 would sit far out on the right-hand side of this table, approving loans that destroy money. The decision rule, not the classifier, is what makes this profitable.
+```
+val_cal (146,552 rows)  ->  fit isotonic calibration
+val_thr (146,553 rows)  ->  sweep and select the threshold
+test                    ->  report profit at that fixed threshold
+```
+
+Selected threshold: **0.16**. Test performance at it, reported once:
+
+| Threshold | Approval rate | Test net |
+|---|---|---|
+| 0.05 | 3.8% | $6.1M |
+| 0.11 | 18.9% | $20.8M |
+| 0.14 | 28.4% | $23.9M |
+| **0.16** | **33.9%** | **$23.5M** |
+| 0.20 | 41.7% | $21.8M |
+| 0.26 | 66.2% | **−$1.7M** |
+| 0.32 | 75.9% | **−$19.8M** |
+
+**Approve roughly the safest 34% of applicants.** The shape of the curve is the argument: profit peaks and then collapses, going negative past a ~66% approval rate. A threshold tuned for accuracy or F1 sits far out on the right-hand side of this table, approving loans that destroy money. The decision rule, not the classifier, is what makes this profitable.
+
+**How much did the honest split cost?** The test-optimal ("oracle") threshold was 0.14 at $23.94M. Selecting on validation and reporting on test gives $23.50M — a **$0.44M gap, 1.8%**. So the selection bias was real but small, which is itself the finding: the profit conclusion is robust to how the threshold was chosen. Measuring that gap is cheaper than arguing about it.
 
 **Explanation.** Per-prediction SHAP contributions, so the app returns a reason alongside a decision.
 
@@ -95,8 +107,7 @@ The app needs only `deployment_artifacts.joblib`, which is committed. Retraining
 
 Stated rather than hidden, because they are the things a reviewer should ask about:
 
-- **The threshold is selected on the test set.** The sweep in `model_b_step3.py` picks the profit-maximising threshold using test-set outcomes, so the reported net-profit figure is optimistically biased. The *ranking* metrics (PR-AUC, ROC-AUC) are unaffected — those are clean test estimates. Selecting the threshold on validation and reporting profit on test is the correct fix.
-- **Calibration and early stopping share the validation set.** Tree count is chosen on validation, then isotonic calibration is fit on that same set, which makes calibration quality somewhat optimistic.
+- **Early stopping still uses the full validation set.** The number of trees is chosen on all of validation, which includes the `val_thr` rows the threshold is later selected on. Calibration and threshold selection are cleanly separated; tree count is not. The residual optimism is small relative to the 1.8% measured above, but it is not zero — a fully clean design would carve a fourth split for early stopping.
 - **LGD and margin are assumed, not measured.** 50% and 10% are plausible industry figures, not values derived from lender data. The threshold moves if they do.
 - **SHAP explains the uncalibrated model.** Isotonic calibration is monotonic, so the direction and ranking of contributions hold, but the magnitudes are on the raw score's scale.
 - **No temporal validation.** Splits are random rather than out-of-time, so the estimates do not capture macroeconomic drift across the 2007–2018 window.
