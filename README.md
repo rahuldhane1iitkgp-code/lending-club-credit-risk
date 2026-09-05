@@ -76,7 +76,11 @@ Selected threshold: **0.16**. Test performance at it, reported once:
 | 0.26 | 66.2% | **−$1.7M** |
 | 0.32 | 75.9% | **−$19.8M** |
 
-**Approve roughly the safest 34% of applicants.** The shape of the curve is the argument: profit peaks and then collapses, going negative past a ~66% approval rate. A threshold tuned for accuracy or F1 sits far out on the right-hand side of this table, approving loans that destroy money. The decision rule, not the classifier, is what makes this profitable.
+**Approve roughly the safest 34% of applicants.** The shape of the curve is the argument: profit peaks and then collapses, going negative past a ~66% approval rate.
+
+The F1-optimal threshold — the standard ML default — lands at **0.23**, approving 58.2% of applicants for a test net of **$8.9M**. It doesn't lose money, but it leaves **almost two-thirds of the achievable profit on the table** ($8.9M vs $23.5M). Both thresholds are computed on the same calibrated probability scale, which matters: comparing an F1 cutoff derived from raw XGBoost scores against a profit cutoff derived from calibrated ones compares two different units and produces a much more dramatic — and wrong — gap.
+
+The decision rule, not the classifier, is what makes this profitable.
 
 **How much did the honest split cost?** The test-optimal ("oracle") threshold was 0.14 at $23.94M. Selecting on validation and reporting on test gives $23.50M — a **$0.44M gap, 1.8%**. So the selection bias was real but small, which is itself the finding: the profit conclusion is robust to how the threshold was chosen. Measuring that gap is cheaper than arguing about it.
 
