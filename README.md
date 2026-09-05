@@ -1,20 +1,10 @@
----
-title: Lending Club Credit Risk Model
-emoji: 💳
-colorFrom: blue
-colorTo: green
-sdk: streamlit
-app_file: app.py
-pinned: false
----
-
 # Lending Club Credit Risk Model
 
 A credit risk scoring model that ends in a **lending decision**, not just a probability.
 
 XGBoost, isotonically calibrated, with an approve/reject threshold chosen to maximise net profit under an explicit expected-loss framework — not to maximise accuracy or F1. Built on 39 application-time features that a borrower or loan officer could realistically supply, retaining **94.3% of the test PR-AUC** of a fuller 151-feature research model.
 
-**Live demo:** [Hugging Face Space](https://huggingface.co/spaces/rahuldhane/lending-club-credit-risk)
+**Live demo:** [lending-club-credit-risk.streamlit.app](https://lending-club-credit-risk-dyvypcroo68hgvdpjlgfpm.streamlit.app/)
 
 ---
 
@@ -40,6 +30,8 @@ This project answers both.
 Model B2 retains **94.3%** of Model A's test PR-AUC using a quarter of the features, none of which require post-origination information. Quantifying that gap is the point: a 5.7% performance cost to become deployable is a tradeoff you can defend in a room; an unquantified one is not.
 
 Adding US region to B1 was worth **+0.0023 PR-AUC** — a real but marginal gain, kept because it costs the applicant nothing to provide.
+
+**Out-of-time evaluation.** Splits are by origination year — train ≤2015 (829,355 loans), validate 2016 (293,105), test 2017 (169,321) — not random. A random split would let the model train on 2016 and be scored on 2010, which no deployed model ever gets to do.
 
 **Leakage control.** `int_rate`, `grade`, and `sub_grade` are excluded throughout — they encode the platform's existing risk judgement. `combined_fico_low`/`combined_fico_high` are collapsed into a single `fico_score`.
 
@@ -92,7 +84,8 @@ The decision rule, not the classifier, is what makes this profitable.
 |---|---|
 | `model_b_step1.py` | Feature construction — region mapping, FICO collapse, deployment feature set |
 | `model_b_step2.py` | Trains B1/B2, calibrates, evaluates vs. Model A, picks the winner |
-| `model_b_step3.py` | Expected-loss threshold sweep |
+| `model_b_step3.py` | Expected-loss threshold sweep — selects on validation, reports on test |
+| `model_a_threshold.py` | Same procedure applied to the 151-feature research model |
 | `save_deployment_artifacts.py` | Bundles model, features, threshold, metrics into one artifact |
 | `app.py` | Streamlit app — form → calibrated probability → decision → SHAP reasons |
 | `test_app_logic.py` | Reproduces the app's feature assembly headlessly; includes a risky-applicant sanity check |
@@ -105,7 +98,7 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The app needs only `deployment_artifacts.joblib`, which is committed. Retraining from scratch additionally requires the [Lending Club accepted-loans dataset](https://www.kaggle.com/datasets/wordsforthewise/lending-club) (~1.6 GB, not committed).
+Deployed on Streamlit Community Cloud, which rebuilds automatically on every push to `main`. The app needs only `deployment_artifacts.joblib`, which is committed. Retraining from scratch additionally requires the [Lending Club accepted-loans dataset](https://www.kaggle.com/datasets/wordsforthewise/lending-club) (~1.6 GB, not committed).
 
 ## Known limitations
 
@@ -114,6 +107,7 @@ Stated rather than hidden, because they are the things a reviewer should ask abo
 - **Early stopping still uses the full validation set.** The number of trees is chosen on all of validation, which includes the `val_thr` rows the threshold is later selected on. Calibration and threshold selection are cleanly separated; tree count is not. The residual optimism is small relative to the 1.8% measured above, but it is not zero — a fully clean design would carve a fourth split for early stopping.
 - **LGD and margin are assumed, not measured.** 50% and 10% are plausible industry figures, not values derived from lender data. The threshold moves if they do.
 - **SHAP explains the uncalibrated model.** Isotonic calibration is monotonic, so the direction and ranking of contributions hold, but the magnitudes are on the raw score's scale.
-- **No temporal validation.** Splits are random rather than out-of-time, so the estimates do not capture macroeconomic drift across the 2007–2018 window.
+- **The test set is a single vintage.** Evaluation is out-of-time by construction (train ≤2015, validate 2016, test 2017), but 2017 is one origination year — it measures one step of drift, not drift across a cycle. 2018 was excluded because loans that close that quickly are disproportionately early payoffs, which biases its apparent default rate downward.
+- **No confidence interval on the profit figure.** $23.5M is a point estimate. A bootstrap over the test set would say how much of the gap to the F1 threshold is real.
 
 This is a portfolio project. The assumptions are documented so the numbers can be judged against them.
