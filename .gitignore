@@ -1,0 +1,28 @@
+# Raw data (1.6 GB — download from Kaggle, see README)
+accepted_2007_to_2018Q4.csv
+*.csv
+
+# Intermediate session state (multi-GB pickles, regenerable from the pipeline)
+session_state.joblib
+session_state_b.joblib
+
+# Experiment tracking
+mlflow.db
+mlruns/
+
+# Notebook cruft
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Regenerable intermediate (7 MB)
+model_b_results.joblib
