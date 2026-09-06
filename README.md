@@ -131,6 +131,8 @@ Folding 2016 into training, holding the split design constant:
 | A — research | 151 | 0.4172 | **0.4383** | **+0.0211** | 423 → **766** |
 | B — deployment | 39 | 0.3896 | **0.3922** | **+0.0034** | 423 → **367** |
 
+**The comparison is single-variable, and that was verified rather than assumed.** The ≤2015 and ≤2016 runs originally also differed in their early-stopping set — all of 2016 (293k rows, out-of-time) versus a 38k in-year slice. A control trained on ≤2015 while early-stopping on that same 38k slice scores **0.4172** with best_iter 421, against 0.4172 and best_iter 423 for the original. The early-stopping regime is worth **−0.0000**, so the entire +0.0211 is the training window.
+
 Identical rows, identical split, identical seed — and a **6× difference in benefit**. The 151-feature model absorbs the extra vintage and nearly doubles its tree count before overfitting. The 39-feature model *shrinks*, because it has already extracted everything its features can express.
 
 **More recent data only helps if the model has the capacity to use it.** That is why the deployability gap widened from 5.7% to 10.5%: the constraint that makes Model B shippable also caps how much it can learn.
@@ -179,6 +181,7 @@ So it is overwhelmingly a **ranking** improvement, not extra volume. Same book s
 | `bootstrap_benchmark.py` | 1000-resample paired bootstrap on the PR-AUC differences |
 | `experiment_recency.py` | Training-window experiment on the 151-feature model |
 | `experiment_recency_control.py` | Same experiment under the deployment split, as a control |
+| `experiment_recency_clean.py` | Isolates the training window by holding the early-stopping set fixed |
 | `model_b_recency.py` | Rebuilds the shipped model end to end on the wider window |
 | `save_deployment_artifacts.py` | Bundles model, features, threshold, metrics into one artifact |
 | `app.py` | Streamlit app — form → calibrated probability → decision → SHAP reasons |
