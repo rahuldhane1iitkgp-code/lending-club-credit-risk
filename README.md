@@ -6,6 +6,19 @@ XGBoost, isotonically calibrated, with an approve/reject threshold chosen to max
 
 **Live demo:** [lending-club-credit-risk.streamlit.app](https://lending-club-credit-risk-dyvypcroo68hgvdpjlgfpm.streamlit.app/)
 
+<table>
+<tr>
+<td width="50%"><img src="docs/app_form.png" alt="Application form collecting the 39 model inputs across loan, borrower and credit sections"></td>
+<td width="50%"><img src="docs/app_result.png" alt="Result panel showing a 19.0% predicted default probability, a REJECT decision against the 16% threshold, and the top SHAP contributing factors"></td>
+</tr>
+<tr>
+<td><em>39 application-time inputs. Engineered ratios such as loan-to-income are computed from these, never asked of the user.</em></td>
+<td><em>Calibrated PD, an approve/reject call at the profit-optimal 0.16 cutoff, and the SHAP drivers behind that specific decision.</em></td>
+</tr>
+</table>
+
+The flow is **application &rarr; calibrated PD &rarr; decision &rarr; reason**. A denial arrives with the factors that caused it, which is the adverse-action format lending regulation requires.
+
 ---
 
 ## The problem this is actually solving
@@ -179,6 +192,7 @@ So it is overwhelmingly a **ranking** improvement, not extra volume. Same book s
 | `model_a_threshold.py` | Same procedure applied to the 151-feature research model |
 | `model_benchmark.py` | Five algorithm families plus an ensemble on the identical split |
 | `bootstrap_benchmark.py` | 1000-resample paired bootstrap on the PR-AUC differences |
+| `capture_screenshots.py` | Regenerates the README screenshots, refusing to shoot a stale build |
 | `experiment_recency.py` | Training-window experiment on the 151-feature model |
 | `experiment_recency_control.py` | Same experiment under the deployment split, as a control |
 | `experiment_recency_clean.py` | Isolates the training window by holding the early-stopping set fixed |
