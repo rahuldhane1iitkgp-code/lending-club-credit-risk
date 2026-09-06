@@ -144,7 +144,26 @@ For the shipped model the change is still worth real money, and both intervals c
 
 **+7.1% profit from changing the training window, against +0.5% from ensembling three gradient boosters.** The lever was never the algorithm.
 
-Note that profit moved far more than PR-AUC. Ranking barely improved; what improved was calibration near the cutoff, letting 1.7pp more applicants through at the same 16% threshold — and those marginal approvals were profitable. Ranking quality and decision quality are not the same measurement.
+### Where the $1.68M actually comes from
+
+Profit moved far more than PR-AUC, so the gain is decomposed rather than asserted. Holding the new model to the **identical number of approvals** as the old one isolates ranking from volume:
+
+| | Approvals | Default rate among approved | Test net |
+|---|---|---|---|
+| Old model @ 0.16 | 57,348 (33.9%) | 10.42% | $23.50M |
+| New model, same volume | 57,348 (33.9%) | **10.14%** | $24.98M |
+| New model @ 0.16 | 60,224 (35.6%) | 10.38% | $25.17M |
+
+| Effect | Δ Net | Share |
+|---|---|---|
+| **Ranking** — a better set of borrowers at the same volume | **+$1.49M** | **89%** |
+| Volume — 2,876 extra approvals at a 15.23% default rate, against a 16.67% break-even | +$0.19M | 11% |
+
+So it is overwhelmingly a **ranking** improvement, not extra volume. Same book size, 0.28pp fewer defaulters inside it.
+
+**Why PR-AUC barely registered it.** PR-AUC averages over the whole ranking; the decision only touches the top third. The retrained model improved specifically near the cutoff — separating good from bad among the *safest* applicants — while leaving the middle and tail largely as they were. Spearman correlation between the two models' rankings is **0.9799**: they mostly agree, and the 2% where they disagree is where the money is. A global ranking metric averages that away. **Ranking quality and decision quality are not the same measurement**, and a 0.9% PR-AUC gain worth 7.1% of profit is the proof.
+
+**A calibration side-effect worth knowing.** Isotonic regression is a step function: it maps 169,321 test loans onto **396 distinct probabilities**, the largest plateau holding 12,168 loans at exactly p=0.2048. Thousands of applicants therefore share an identical score, and moving the threshold can jump the approval rate by a whole plateau or not move it at all — which is why approval went 33.9% → 35.6% at the *same* 0.16 cutoff. Approval rate cannot be finely tuned with this model. Platt scaling would give a smooth curve at some cost in calibration accuracy; isotonic was chosen for accuracy, and this is the price.
 
 ## Repo layout
 
