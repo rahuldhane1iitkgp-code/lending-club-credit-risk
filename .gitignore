@@ -32,3 +32,6 @@ model_benchmark.joblib
 bootstrap_benchmark.joblib
 lgbm_fixed.joblib
 bench_rerun.log
+
+# Keep the small benchmark result tables the README links to
+!reports_*.csv
