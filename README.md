@@ -78,6 +78,43 @@ The decision rule, not the classifier, is what makes this profitable.
 
 **Explanation.** Per-prediction SHAP contributions, so the app returns a reason alongside a decision.
 
+## Is 0.41 PR-AUC low? Benchmarked, then tested for significance
+
+A single model's score says nothing about whether a better one exists. Five algorithm families were run on the identical temporal split, each early-stopped on 2016 and scored once on 2017:
+
+| Model | Val PR-AUC | Test PR-AUC | Test ROC-AUC | vs XGBoost |
+|---|---|---|---|---|
+| Rank-avg ensemble (3 GBMs) | 0.4371 | **0.4193** | 0.7134 | +0.0021 |
+| LightGBM | 0.4353 | 0.4180 | 0.7117 | +0.0008 |
+| HistGradientBoosting | 0.4350 | 0.4176 | **0.7127** | +0.0004 |
+| **XGBoost (shipped)** | 0.4352 | 0.4172 | 0.7114 | — |
+| Logistic Regression | 0.4196 | 0.4018 | 0.7015 | −0.0154 |
+| Random Forest | 0.4199 | 0.3989 | 0.6982 | −0.0182 |
+
+No-skill baseline 0.2313 · best lift **1.81×** · full output in [`reports_model_benchmark.csv`](reports_model_benchmark.csv)
+
+Point estimates cannot say whether that ordering is meaningful, so a **1000-resample paired bootstrap** on the test set follows — every model rescored on the same resample each time, so shared sampling noise cancels:
+
+| Model | Δ PR-AUC | 95% CI | P(beats XGBoost) | Distinguishable |
+|---|---|---|---|---|
+| Ensemble (3 GBMs) | +0.0021 | [+0.0015, +0.0028] | 100% | **yes** |
+| LightGBM | +0.0008 | [−0.0002, +0.0018] | 95.0% | no |
+| HistGradientBoosting | +0.0004 | [−0.0008, +0.0017] | 75.5% | no |
+| Logistic Regression | −0.0154 | [−0.0177, −0.0131] | 0% | **yes** |
+| Random Forest | −0.0182 | [−0.0203, −0.0162] | 0% | **yes** |
+
+XGBoost test PR-AUC 0.4172, bootstrap 95% CI [0.4126, 0.4227] · [`reports_bootstrap_benchmark.csv`](reports_bootstrap_benchmark.csv)
+
+**The conclusion: 0.41 is the data's ceiling, not the model's.** Three independently written gradient-boosting implementations — different split-finding, different regularisation, different missing-value handling — agree to the third decimal on validation (0.4350–0.4353) and test (0.4172–0.4180). None is statistically distinguishable from the others.
+
+The most informative row is **logistic regression at 0.4018**: a linear model with no interaction terms captures **96%** of what a 423-tree boosted ensemble achieves. If substantial non-linear structure remained, that gap would be far wider.
+
+The ensemble's +0.0021 *is* statistically resolvable — 169k test rows and a paired design give enough power to detect it — but it is a **0.5% relative gain** for triple the inference cost and the loss of single-model SHAP attribution the app depends on. It is not shipped. Statistical significance and practical significance are different questions, and this is a clean case of the two disagreeing.
+
+Default is driven substantially by post-origination events — job loss, illness, divorce — that are unknowable at application time. That is the ceiling. The only lever that would move it materially is re-admitting `grade`/`int_rate`, which means re-admitting the circularity those were dropped for.
+
+> **A benchmark trap worth documenting.** LightGBM's sklearn wrapper initially scored 0.368 — apparently far behind XGBoost. In LightGBM 4.7 the wrapper's `eval_set` argument is deprecated and the validation set never reaches early stopping, so training halted at **iteration 7**. Via the native `lgb.train` API it runs to 523 iterations and scores 0.4180. A silently mistrained challenger is how benchmarks reach confident, wrong conclusions about which algorithm wins.
+
 ## Repo layout
 
 | File | Purpose |
@@ -86,6 +123,8 @@ The decision rule, not the classifier, is what makes this profitable.
 | `model_b_step2.py` | Trains B1/B2, calibrates, evaluates vs. Model A, picks the winner |
 | `model_b_step3.py` | Expected-loss threshold sweep — selects on validation, reports on test |
 | `model_a_threshold.py` | Same procedure applied to the 151-feature research model |
+| `model_benchmark.py` | Five algorithm families plus an ensemble on the identical split |
+| `bootstrap_benchmark.py` | 1000-resample paired bootstrap on the PR-AUC differences |
 | `save_deployment_artifacts.py` | Bundles model, features, threshold, metrics into one artifact |
 | `app.py` | Streamlit app — form → calibrated probability → decision → SHAP reasons |
 | `test_app_logic.py` | Reproduces the app's feature assembly headlessly; includes a risky-applicant sanity check |

@@ -26,3 +26,9 @@ Thumbs.db
 
 # Regenerable intermediate (7 MB)
 model_b_results.joblib
+
+# Benchmark score arrays (regenerable, several MB of per-row predictions)
+model_benchmark.joblib
+bootstrap_benchmark.joblib
+lgbm_fixed.joblib
+bench_rerun.log
