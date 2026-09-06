@@ -2,7 +2,7 @@
 
 A credit risk scoring model that ends in a **lending decision**, not just a probability.
 
-XGBoost, isotonically calibrated, with an approve/reject threshold chosen to maximise net profit under an explicit expected-loss framework — not to maximise accuracy or F1. Built on 39 application-time features that a borrower or loan officer could realistically supply, retaining **94.3% of the test PR-AUC** of a fuller 151-feature research model.
+XGBoost, isotonically calibrated, with an approve/reject threshold chosen to maximise net profit under an explicit expected-loss framework — not to maximise accuracy or F1. Built on 39 application-time features that a borrower or loan officer could realistically supply, retaining **89.5% of the test PR-AUC** of a fuller 151-feature research model.
 
 **Live demo:** [lending-club-credit-risk.streamlit.app](https://lending-club-credit-risk-dyvypcroo68hgvdpjlgfpm.streamlit.app/)
 
@@ -23,15 +23,16 @@ This project answers both.
 
 | Model | Features | Test PR-AUC | Test ROC-AUC | Brier |
 |---|---|---|---|---|
-| A — research | 151 | **0.4132** | — | — |
-| B1 — deployment, no region | 36 | 0.3873 | 0.6930 | 0.1633 |
-| **B2 — deployment, shipped** | **39** | **0.3896** | 0.6946 | 0.1630 |
+| A — research | 151 | **0.4383** | 0.7265 | — |
+| **B — deployment, shipped** | **39** | **0.3922** | 0.6987 | 0.1624 |
 
-Model B2 retains **94.3%** of Model A's test PR-AUC using a quarter of the features, none of which require post-origination information. Quantifying that gap is the point: a 5.7% performance cost to become deployable is a tradeoff you can defend in a room; an unquantified one is not.
+Model B retains **89.5%** of Model A's test PR-AUC using a quarter of the features, none of which require post-origination information. Quantifying that gap is the point: a 10.5% performance cost to become deployable is a tradeoff you can defend in a room; an unquantified one is not.
 
-Adding US region to B1 was worth **+0.0023 PR-AUC** — a real but marginal gain, kept because it costs the applicant nothing to provide.
+Both models train on loans originated through 2016 and are tested on 2017 — see [the training-window section](#does-a-wider-training-window-help-only-if-the-model-can-use-it) for why, and for the earlier ≤2015 figures (0.4132 / 0.3896, a 94.3% retention) those numbers replace.
 
-**Out-of-time evaluation.** Splits are by origination year — train ≤2015 (829,355 loans), validate 2016 (293,105), test 2017 (169,321) — not random. A random split would let the model train on 2016 and be scored on 2010, which no deployed model ever gets to do.
+Adding US region was worth **+0.0023 PR-AUC** (measured on the earlier ≤2015 models) — a real but marginal gain, kept because it costs the applicant nothing to provide.
+
+**Out-of-time evaluation.** Splits are by origination year, not random — a random split would let the model train on 2016 and be scored on 2010, which no deployed model ever gets to do. 2017 (169,321 loans) is the test year and is read once. 2018 is excluded entirely: loans that close that fast are disproportionately early payoffs, which drags its apparent default rate down to 15.8%.
 
 **Leakage control.** `int_rate`, `grade`, and `sub_grade` are excluded throughout — they encode the platform's existing risk judgement. `combined_fico_low`/`combined_fico_high` are collapsed into a single `fico_score`.
 
@@ -48,33 +49,35 @@ net = Σ (principal × margin)   over approved loans that repaid
 
 with `LGD = 50%` and `profit margin = 10%` as stated assumptions.
 
-**The threshold is a fitted parameter, so it gets its own held-out data.** Selecting it on test and then reporting profit at that threshold reports the maximum of a noisy surface — a biased number. Validation is therefore split in two:
+**Every fitted quantity gets data nothing else touched.** A decision threshold is a fitted parameter like any hyperparameter: select it on test and the reported profit is the maximum of a noisy surface, not an estimate. Since 2016 is now training data, it is cut four ways so that tree count, calibration and threshold each get their own rows:
 
 ```
-val_cal (146,552 rows)  ->  fit isotonic calibration
-val_thr (146,553 rows)  ->  sweep and select the threshold
-test                    ->  report profit at that fixed threshold
+<=2015 + 60% of 2016 (1,005,218)  ->  train
+           13% of 2016   (38,103)  ->  early stopping, tree count
+           13% of 2016   (37,986)  ->  isotonic calibration
+           14% of 2016   (41,153)  ->  threshold selection
+2017                    (169,321)  ->  test, read once
 ```
 
 Selected threshold: **0.16**. Test performance at it, reported once:
 
 | Threshold | Approval rate | Test net |
 |---|---|---|
-| 0.05 | 3.8% | $6.1M |
-| 0.11 | 18.9% | $20.8M |
-| 0.14 | 28.4% | $23.9M |
-| **0.16** | **33.9%** | **$23.5M** |
-| 0.20 | 41.7% | $21.8M |
-| 0.26 | 66.2% | **−$1.7M** |
-| 0.32 | 75.9% | **−$19.8M** |
+| 0.05 | 4.6% | $7.3M |
+| 0.11 | 17.6% | $20.8M |
+| 0.14 | 24.0% | $24.1M |
+| **0.16** | **35.6%** | **$25.2M** |
+| 0.20 | 44.7% | $22.2M |
+| 0.26 | 64.5% | $3.1M |
+| 0.32 | 78.7% | **−$24.2M** |
 
-**Approve roughly the safest 34% of applicants.** The shape of the curve is the argument: profit peaks and then collapses, going negative past a ~66% approval rate.
+**Approve roughly the safest 36% of applicants.** The shape of the curve is the argument: profit peaks and then collapses, going negative past a ~70% approval rate.
 
-The F1-optimal threshold — the standard ML default — lands at **0.23**, approving 58.2% of applicants for a test net of **$8.9M**. It doesn't lose money, but it leaves **almost two-thirds of the achievable profit on the table** ($8.9M vs $23.5M). Both thresholds are computed on the same calibrated probability scale, which matters: comparing an F1 cutoff derived from raw XGBoost scores against a profit cutoff derived from calibrated ones compares two different units and produces a much more dramatic — and wrong — gap.
+The F1-optimal threshold — the standard ML default — lands at **0.23**, approving 58.2% of applicants for a test net of **$8.9M**. It doesn't lose money, but it leaves a large share of the achievable profit on the table ($8.9M against $23.5M on the ≤2015 model where both were measured). Both thresholds are computed on the same calibrated probability scale, which matters: comparing an F1 cutoff derived from raw XGBoost scores against a profit cutoff derived from calibrated ones compares two different units and produces a much more dramatic — and wrong — gap.
 
 The decision rule, not the classifier, is what makes this profitable.
 
-**How much did the honest split cost?** The test-optimal ("oracle") threshold was 0.14 at $23.94M. Selecting on validation and reporting on test gives $23.50M — a **$0.44M gap, 1.8%**. So the selection bias was real but small, which is itself the finding: the profit conclusion is robust to how the threshold was chosen. Measuring that gap is cheaper than arguing about it.
+**How much did the honest split cost?** On this model, nothing measurable: the validation-selected threshold of 0.16 is also the test-optimal one, so the selection optimism is **0.0%**. On the earlier ≤2015 model the same procedure cost 1.8% ($23.50M against a test-selected $23.94M). Measuring that gap is cheaper than arguing about it.
 
 **Explanation.** Per-prediction SHAP contributions, so the app returns a reason alongside a decision.
 
@@ -115,6 +118,34 @@ Default is driven substantially by post-origination events — job loss, illness
 
 > **A benchmark trap worth documenting.** LightGBM's sklearn wrapper initially scored 0.368 — apparently far behind XGBoost. In LightGBM 4.7 the wrapper's `eval_set` argument is deprecated and the validation set never reaches early stopping, so training halted at **iteration 7**. Via the native `lgb.train` API it runs to 523 iterations and scores 0.4180. A silently mistrained challenger is how benchmarks reach confident, wrong conclusions about which algorithm wins.
 
+## Does a wider training window help? Only if the model can use it
+
+The algorithm benchmark above pinned every learner near 0.417, which suggested the limit was the data rather than the model. It was — but not in the way "get more features" implies. The shipped model trained on loans through **2015** and was scored on **2017**: a two-year gap across which the default rate moves from 18.5% to 23.1%. It was being asked to extrapolate across a real shift in credit conditions.
+
+Folding 2016 into training, holding the split design constant:
+
+| Model | Features | Train ≤2015 | Train ≤2016 | Gain | Best iteration |
+|---|---|---|---|---|---|
+| A — research | 151 | 0.4172 | **0.4383** | **+0.0211** | 423 → **766** |
+| B — deployment | 39 | 0.3896 | **0.3922** | **+0.0034** | 423 → **367** |
+
+Identical rows, identical split, identical seed — and a **6× difference in benefit**. The 151-feature model absorbs the extra vintage and nearly doubles its tree count before overfitting. The 39-feature model *shrinks*, because it has already extracted everything its features can express.
+
+**More recent data only helps if the model has the capacity to use it.** That is why the deployability gap widened from 5.7% to 10.5%: the constraint that makes Model B shippable also caps how much it can learn.
+
+For the shipped model the change is still worth real money, and both intervals clear zero on a 1000-resample paired bootstrap:
+
+| Metric | ≤2015 | ≤2016 | Δ | 95% CI |
+|---|---|---|---|---|
+| Test PR-AUC | 0.3896 | 0.3922 | +0.0034 | [+0.0024, +0.0045] |
+| Test ROC-AUC | 0.6946 | 0.6987 | +0.0042 | — |
+| Approval rate | 33.9% | 35.6% | +1.7pp | — |
+| **Test net profit** | **$23.50M** | **$25.17M** | **+$1.68M** | **[+$0.97M, +$2.37M]** |
+
+**+7.1% profit from changing the training window, against +0.5% from ensembling three gradient boosters.** The lever was never the algorithm.
+
+Note that profit moved far more than PR-AUC. Ranking barely improved; what improved was calibration near the cutoff, letting 1.7pp more applicants through at the same 16% threshold — and those marginal approvals were profitable. Ranking quality and decision quality are not the same measurement.
+
 ## Repo layout
 
 | File | Purpose |
@@ -125,6 +156,9 @@ Default is driven substantially by post-origination events — job loss, illness
 | `model_a_threshold.py` | Same procedure applied to the 151-feature research model |
 | `model_benchmark.py` | Five algorithm families plus an ensemble on the identical split |
 | `bootstrap_benchmark.py` | 1000-resample paired bootstrap on the PR-AUC differences |
+| `experiment_recency.py` | Training-window experiment on the 151-feature model |
+| `experiment_recency_control.py` | Same experiment under the deployment split, as a control |
+| `model_b_recency.py` | Rebuilds the shipped model end to end on the wider window |
 | `save_deployment_artifacts.py` | Bundles model, features, threshold, metrics into one artifact |
 | `app.py` | Streamlit app — form → calibrated probability → decision → SHAP reasons |
 | `test_app_logic.py` | Reproduces the app's feature assembly headlessly; includes a risky-applicant sanity check |
@@ -146,6 +180,7 @@ Stated rather than hidden, because they are the things a reviewer should ask abo
 - **Early stopping still uses the full validation set.** The number of trees is chosen on all of validation, which includes the `val_thr` rows the threshold is later selected on. Calibration and threshold selection are cleanly separated; tree count is not. The residual optimism is small relative to the 1.8% measured above, but it is not zero — a fully clean design would carve a fourth split for early stopping.
 - **LGD and margin are assumed, not measured.** 50% and 10% are plausible industry figures, not values derived from lender data. The threshold moves if they do.
 - **SHAP explains the uncalibrated model.** Isotonic calibration is monotonic, so the direction and ranking of contributions hold, but the magnitudes are on the raw score's scale.
+- **Calibration and threshold rows are in-distribution, not out-of-time.** Once 2016 joined the training window, the calibration and threshold-selection sets became held-out *rows* from a year the model has otherwise seen, rather than a wholly unseen year. Test remains a genuine future vintage, so the headline PR-AUC and profit figures are clean, but the threshold may be slightly optimistic for 2017 in a way the earlier ≤2015 design was not.
 - **The test set is a single vintage.** Evaluation is out-of-time by construction (train ≤2015, validate 2016, test 2017), but 2017 is one origination year — it measures one step of drift, not drift across a cycle. 2018 was excluded because loans that close that quickly are disproportionately early payoffs, which biases its apparent default rate downward.
 - **No confidence interval on the profit figure.** $23.5M is a point estimate. A bootstrap over the test set would say how much of the gap to the F1 threshold is real.
 

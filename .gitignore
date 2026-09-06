@@ -35,3 +35,10 @@ bench_rerun.log
 
 # Keep the small benchmark result tables the README links to
 !reports_*.csv
+
+# Local backup of the pre-recency artifact
+deployment_artifacts_pre_recency.joblib
+deployment_artifacts_recency.joblib
+_recency_*.npy
+recency*.log
+bench_rerun.log
