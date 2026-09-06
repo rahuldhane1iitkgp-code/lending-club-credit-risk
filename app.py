@@ -24,9 +24,10 @@ explainer = get_explainer(model)
 
 st.title("Lending Club Credit Risk Model")
 st.caption(
-    "Deployment model (39 features) — retains 94.3% of the full 151-feature research "
+    "Deployment model (39 features) — retains 89.5% of the full 151-feature research "
     "model's test PR-AUC while using only application-time information a borrower or "
-    "loan officer can realistically provide."
+    "loan officer can realistically provide. Trained on loans originated through 2016, "
+    "tested on 2017."
 )
 
 st.header("Loan Details")
