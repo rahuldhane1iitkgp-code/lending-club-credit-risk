@@ -73,7 +73,9 @@ Selected threshold: **0.16**. Test performance at it, reported once:
 
 **Approve roughly the safest 36% of applicants.** The shape of the curve is the argument: profit peaks and then collapses, going negative past a ~70% approval rate.
 
-The F1-optimal threshold — the standard ML default — lands at **0.23**, approving 58.2% of applicants for a test net of **$8.9M**. It doesn't lose money, but it leaves a large share of the achievable profit on the table ($8.9M against $23.5M on the ≤2015 model where both were measured). Both thresholds are computed on the same calibrated probability scale, which matters: comparing an F1 cutoff derived from raw XGBoost scores against a profit cutoff derived from calibrated ones compares two different units and produces a much more dramatic — and wrong — gap.
+The F1-optimal threshold — the standard ML default — lands at **0.21**, approving **52.5%** of applicants for a test net of **$17.32M**. It does not lose money, but it forfeits **$7.85M, or 31%** of the achievable profit, because F1 treats a rejected good borrower and an approved defaulter as equally costly when they differ by an order of magnitude.
+
+Both thresholds are computed on the **same calibrated probability scale**, which matters more than it sounds. An earlier version of this comparison optimised F1 against raw XGBoost scores (mean 0.452) and evaluated profit on calibrated ones (mean 0.233) — two different units. That cutoff rejected almost nobody and appeared to lose $88.7M. It was an arithmetic artifact, not a finding, and the corrected comparison above replaces it.
 
 The decision rule, not the classifier, is what makes this profitable.
 
