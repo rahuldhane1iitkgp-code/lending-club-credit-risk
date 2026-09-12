@@ -39,6 +39,8 @@ This project answers both.
 | A — research | 151 | **0.4383** | 0.7265 | — |
 | **B — deployment, shipped** | **39** | **0.3922** | 0.6987 | 0.1624 |
 
+**Reading these numbers.** PR-AUC's no-skill baseline is not 0.5 — it is the positive class rate, here **0.2313** (23.13% of test loans defaulted). So Model A's 0.4383 is **1.9×** a random ranker and Model B's 0.3922 is **1.7×**. A PR-AUC near 0.9 on application-time credit data would indicate leakage, not skill: default is driven substantially by post-origination shocks that are not knowable at decision time. ROC-AUC, whose baseline *is* 0.5, reads 0.7265 and 0.6987.
+
 Model B retains **89.5%** of Model A's test PR-AUC using a quarter of the features, none of which require post-origination information. Quantifying that gap is the point: a 10.5% performance cost to become deployable is a tradeoff you can defend in a room; an unquantified one is not.
 
 Both models train on loans originated through 2016 and are tested on 2017 — see [the training-window section](#does-a-wider-training-window-help-only-if-the-model-can-use-it) for why, and for the earlier ≤2015 figures (0.4132 / 0.3896, a 94.3% retention) those numbers replace.
