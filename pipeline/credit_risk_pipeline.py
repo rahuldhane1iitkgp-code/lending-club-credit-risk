@@ -1,7 +1,7 @@
 # Lending Club credit risk - full pipeline in one file
 # Raw CSV -> leakage removal -> encoding -> temporal split -> model -> approval cutoff
 #
-# Run: python credit_risk_pipeline.py
+# Run: python credit_risk_pipeline.py   (or open the .ipynb next to it)
 # Takes ~15 min. Needs accepted_2007_to_2018Q4.csv in the same folder.
 
 import time
@@ -17,7 +17,7 @@ from sklearn.metrics import (average_precision_score, roc_auc_score, brier_score
 from xgboost import XGBClassifier
 
 SEED = 42
-CSV = 'accepted_2007_to_2018Q4.csv'
+CSV = 'D:/Lending/accepted_2007_to_2018Q4.csv'
 
 # Economics for the approval decision. These are assumptions, not derived from the data -
 # the columns that would give real recovery rates (recoveries, out_prncp) are post-issuance
