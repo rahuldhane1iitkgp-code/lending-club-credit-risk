@@ -42,3 +42,6 @@ deployment_artifacts_recency.joblib
 _recency_*.npy
 recency*.log
 bench_rerun.log
+
+# Pipeline run log
+pipeline_run.log
