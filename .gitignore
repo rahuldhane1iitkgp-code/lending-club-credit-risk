@@ -45,3 +45,5 @@ bench_rerun.log
 
 # Pipeline run log
 pipeline_run.log
+nbrun.log
+nb_backup.ipynb
